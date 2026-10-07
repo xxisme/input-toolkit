@@ -2,7 +2,7 @@
   "manifestVersion": 2,
   "id": "input-toolkit",
   "name": "输入栏工具箱",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "entry": "index.js",
   "icon": "assets/icon.svg",
   "minAppVersion": "0.970.9",
@@ -24,7 +24,9 @@
       "api.moonshot.cn",
       "openrouter.ai"
     ],
-    "methods": ["GET"],
+    "methods": [
+      "GET"
+    ],
     "defaultTimeoutMs": 15000,
     "maxResponseBytes": 65536
   },
@@ -43,7 +45,10 @@
           "text": "额度 —",
           "tooltip": "点击立即刷新额度",
           "toolName": "input_toolkit_set",
-          "args": { "action": "refresh", "featureId": "quota" }
+          "args": {
+            "action": "refresh",
+            "featureId": "quota"
+          }
         },
         {
           "id": "cachehit",
@@ -51,14 +56,21 @@
           "text": "命中 —",
           "tooltip": "当前对话选用模型的缓存命中率",
           "toolName": "input_toolkit_set",
-          "args": { "action": "refresh", "featureId": "cachehit" }
+          "args": {
+            "action": "refresh",
+            "featureId": "cachehit"
+          }
         },
         {
           "id": "speed",
           "title": "速度",
           "text": "—",
-          "tooltip": "本轮平均速度",          "toolName": "input_toolkit_set",
-          "args": { "action": "refresh", "featureId": "speed" }
+          "tooltip": "本轮平均速度",
+          "toolName": "input_toolkit_set",
+          "args": {
+            "action": "refresh",
+            "featureId": "speed"
+          }
         },
         {
           "id": "optimize",
@@ -66,7 +78,10 @@
           "text": "🪄",
           "tooltip": "优化当前输入框，点击替换，再点撤销",
           "toolName": "input_toolkit_set",
-          "args": { "action": "optimize", "featureId": "polisher" }
+          "args": {
+            "action": "optimize",
+            "featureId": "polisher"
+          }
         }
       ]
     }

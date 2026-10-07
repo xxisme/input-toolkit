@@ -17,6 +17,7 @@ import { FEATURES, FEATURE_ACTIONS } from "./lib/features/index.js";
 import {
   noteTurnStart, noteTurnEnd, noteUsageEvent, resetEventState, resetSessionHint,
 } from "./lib/features/speed.js";
+import { noteSessionCommitted } from "./lib/features/polisher.js";
 
 const APP_ID = "input-toolkit";
 const TOOL_NAME = "input_toolkit_set";
@@ -275,7 +276,7 @@ export default defineApp(async (sdk) => {
     return false;
   }
 
-  // ── 4b. 订阅轮次事件：用宿主给的精确边界算速度 ──────────────
+    // ── 4b. 订阅轮次事件：用宿主给的精确边界算速度 ──────────────
   //
   // 为什么值得这么做：早先的“等 20 秒没动静就算一轮结束”是我拿轮内间隔 p95 硬凑的，
   // 而轮次切分用的“30 秒间隔”也��猜的。宿主其实直接给 `turn_start` / `turn_end`，
@@ -295,7 +296,18 @@ export default defineApp(async (sdk) => {
           if (myGen !== g.gen) return;
           const type = event?.type;
           if (type === "turn_start") { noteTurnStart(); return; }
-          if (type === "llm_usage") { noteUsageEvent(event?.entry); return; }
+          if (type === "llm_usage") {
+            const entry = event?.entry;
+            noteUsageEvent(entry);
+            // 这条事件带 sessionId，意味着该会话刚跑过模型 ——
+            // 也就意味着用户是从**那个**会话的输入框发出的，
+            // 文本已经提交，撤销挂起不再成立，按钮该复位了。
+            // 全程不需要知道“前台是哪个会话”——那正是当初停用监视器的原因。
+            if (entry?.attribution?.sessionId) {
+              try { noteSessionCommitted(entry.attribution.sessionId); } catch { /* 忽略 */ }
+            }
+            return;
+          }
           if (type === "turn_end") {
             const got = noteTurnEnd();
             // 只有真算出数才重画：没有事件就退到账本启发式，不添乱。
