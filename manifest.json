@@ -2,7 +2,7 @@
   "manifestVersion": 2,
   "id": "input-toolkit",
   "name": "输入栏工具箱",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "entry": "index.js",
   "icon": "assets/icon.svg",
   "minAppVersion": "0.970.9",
@@ -19,7 +19,10 @@
   "network": {
     "allowedHosts": [
       "www.minimaxi.com",
-      "api.deepseek.com"
+      "api.deepseek.com",
+      "open.bigmodel.cn",
+      "api.moonshot.cn",
+      "openrouter.ai"
     ],
     "methods": ["GET"],
     "defaultTimeoutMs": 15000,
