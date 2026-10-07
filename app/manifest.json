@@ -1,0 +1,71 @@
+{
+  "manifestVersion": 2,
+  "id": "input-toolkit",
+  "name": "输入栏工具箱",
+  "version": "0.6.1",
+  "entry": "index.js",
+  "icon": "assets/icon.svg",
+  "minAppVersion": "0.970.9",
+  "description": "把散落在输入栏的功能收进一个可开关的工具箱。每一项独立开关，勾选哪几个额度就显示哪几个。",
+  "capabilities": [
+    "app/input.status",
+    "app/sessions.read",
+    "app/models.read",
+    "app/models.infer",
+    "app/process.spawn",
+    "app/provider.credentials.read",
+    "app/usage.read"
+  ],
+  "network": {
+    "allowedHosts": [
+      "www.minimaxi.com",
+      "api.deepseek.com"
+    ],
+    "methods": ["GET"],
+    "defaultTimeoutMs": 15000,
+    "maxResponseBytes": 65536
+  },
+  "contributes": {
+    "settings": {
+      "title": "输入栏工具箱",
+      "ui": {
+        "route": "/settings.html"
+      }
+    },
+    "ui": {
+      "inputStatus": [
+        {
+          "id": "quota",
+          "title": "额度 · 点击更新",
+          "text": "额度 —",
+          "tooltip": "点击立即刷新额度",
+          "toolName": "input_toolkit_set",
+          "args": { "action": "refresh", "featureId": "quota" }
+        },
+        {
+          "id": "cachehit",
+          "title": "缓存命中率",
+          "text": "命中 —",
+          "tooltip": "当前对话选用模型的缓存命中率",
+          "toolName": "input_toolkit_set",
+          "args": { "action": "refresh", "featureId": "cachehit" }
+        },
+        {
+          "id": "speed",
+          "title": "速度",
+          "text": "—",
+          "tooltip": "本轮平均速度",          "toolName": "input_toolkit_set",
+          "args": { "action": "refresh", "featureId": "speed" }
+        },
+        {
+          "id": "optimize",
+          "title": "优化提示词",
+          "text": "🪄",
+          "tooltip": "优化当前输入框，点击替换，再点撤销",
+          "toolName": "input_toolkit_set",
+          "args": { "action": "optimize", "featureId": "polisher" }
+        }
+      ]
+    }
+  }
+}

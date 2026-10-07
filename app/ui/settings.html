@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <title>输入栏工具箱</title>
+  <style>
+    /* 颜色、字体、圆角、动效全部走宿主注入的变量，值取自 DSH 那份
+       （它和宿主画的那套设置表单是同一套变量，所以两边看起来才一致）。
+       括号里的兜底值只在变量缺席时生效，浅色主题下不会看到。 */
+    :root {
+      color-scheme: light dark;
+      --it-surface:      var(--bg-card, #fff);
+      --it-page:         var(--bg, #fff);
+      --it-text:         var(--text, #222);
+      --it-text-muted:   var(--text-muted, #6b6b6b);
+      --it-line:         var(--border, #e2e2e2);
+      --it-accent:       var(--accent, #537d96);
+      --it-accent-hover: var(--accent-hover, #3f6179);
+      --it-on-accent:    var(--on-accent, #fff);
+      --it-danger:       var(--danger-bg, #c0616b);
+      --it-hover:        var(--overlay-subtle, rgba(127,127,127,.10));
+      --it-radius:       var(--radius-card, 8px);
+      --it-radius-input: var(--radius-input, 6px);
+      --it-radius-lg:    var(--radius-lg, 12px);
+      --it-font:         var(--font-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif);
+      --it-fast:         var(--duration-fast, .15s);
+      --it-ease:         var(--ease-out, cubic-bezier(.16, 1, .3, 1));
+    }
+
+    html { background: var(--it-page); }
+    body {
+      margin: 0; padding: 14px 22px 30px;
+      font-family: var(--it-font);
+      font-size: .9rem; line-height: 1.5;
+      color: var(--it-text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* 一整块卡片装一个功能。圆角、底色、分隔线的做法照 DSH：
+       卡片圆角 = radius-card + 2px，分隔线从左侧缩进 1rem 让文字对齐。 */
+    .card {
+      background: var(--it-surface);
+      border: 1px solid var(--it-line);
+      border-radius: calc(var(--it-radius) + 2px);
+      margin-bottom: 18px; overflow: hidden;
+    }
+    .card > h2 {
+      font-size: .82rem; font-weight: 600; margin: 0;
+      padding: 11px 16px 5px;
+    }
+    .card > .blurb {
+      font-size: .78rem; color: var(--it-text-muted);
+      padding: 0 16px 10px; line-height: 1.5;
+    }
+
+    /* 标题行：功能名 + 开关。标题字重比说明文字重一档，不靠字号堆大小。
+       首行不要分隔线 —— 上面已经没有别的内容了，再画一条像被截断。 */
+    .row.head { border-top: none; padding: 12px 16px 10px; }
+    .row.head .label .t {
+      display: block; font-size: .9rem; font-weight: 600; line-height: 1.35;
+    }
+
+    /* 一行：左标题右控件。分隔线缩进 1rem，与标题左边缘对齐。 */
+    .row {
+      display: flex; align-items: center; gap: 18px;
+      padding: 9px 16px;
+      border-top: 1px solid var(--it-line);
+    }
+    .row.stack { display: block; }
+    .row .label { flex: 1; min-width: 0; font-size: .82rem; font-weight: 400; }
+    .row .label .hint {
+      display: block; font-size: .7rem; color: var(--it-text-muted);
+      margin-top: 2px; line-height: 1.5; font-weight: 400;
+    }
+    .row .ctrl { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
+    .row.stack .ctrl { display: block; margin-top: 8px; }
+
+    /* 滑块开关：圆角 6px、滑块圆角 4px（跟 DSH 的 --toggle-* 一致），
+       轨道宽 34 比常见的小一截，配上 4px 圆角才是宿主那种扁平感。 */
+    .sw {
+      position: relative; flex: 0 0 auto;
+      width: 34px; height: 20px; padding: 0; border: none;
+      border-radius: 6px; cursor: pointer;
+      background: var(--overlay-medium, rgba(127,127,127,.42));
+      transition: background var(--it-fast) var(--it-ease);
+    }
+    .sw::after {
+      content: ""; position: absolute; top: 2px; left: 2px;
+      width: 16px; height: 16px; border-radius: 4px;
+      background: var(--it-surface);
+      transition: transform var(--it-fast) var(--it-ease);
+    }
+    .sw[aria-checked="true"] { background: var(--it-accent); }
+    .sw[aria-checked="true"]::after { transform: translateX(14px); }
+    .sw:hover:not([aria-checked="true"]) { background: var(--overlay-strong, rgba(127,127,127,.55)); }
+    .sw[aria-checked="true"]:hover { background: var(--it-accent-hover); }
+    .sw:disabled { opacity: .5; cursor: default; }
+    .sw:focus-visible { outline: 2px solid var(--it-accent); outline-offset: 2px; }
+
+    input[type="text"], input[type="number"], select, textarea {
+      width: 100%; padding: 6px 9px; font-family: inherit; font-size: .82rem;
+      border-radius: calc(var(--it-radius-input) + 2px);
+      border: 1px solid var(--it-line);
+      background: var(--it-page); color: var(--it-text);
+      transition: border-color var(--it-fast) var(--it-ease);
+    }
+    .row:not(.stack) input[type="number"] { width: 84px; text-align: right; }
+    .row:not(.stack) select { width: auto; min-width: 200px; }
+    /* 分钟这类取值：用“5 分钟”这种带单位的文字，比光一个数字好认。 */
+    .row:not(.stack) select.unitized { min-width: 132px; }
+    textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
+    input:hover, select:hover, textarea:hover { border-color: var(--overlay-strong, rgba(127,127,127,.4)); }
+    input:focus, select:focus, textarea:focus {
+      outline: none; border-color: var(--it-accent);
+    }
+
+    /* 勾选项：小圆角标签，不用大药丸。 */
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px; font-size: .78rem; cursor: pointer; user-select: none;
+      border-radius: var(--it-radius-input);
+      border: 1px solid var(--it-line); background: transparent;
+      transition: background var(--it-fast) var(--it-ease), border-color var(--it-fast) var(--it-ease);
+    }
+    .chip:hover { border-color: var(--overlay-strong, rgba(127,127,127,.4)); }
+    .chip.on {
+      background: var(--it-accent); border-color: var(--it-accent); color: var(--it-on-accent);
+    }
+    .chip input { accent-color: var(--it-accent); margin: 0; }
+    .chip.on input { accent-color: var(--it-on-accent); }
+
+    .err { font-size: .7rem; color: var(--it-danger); padding: 0 16px 10px; }
+    .err:empty { display: none; }
+
+    details > summary {
+      font-size: .7rem; color: var(--it-text-muted);
+      cursor: pointer; padding: 9px 16px 5px; list-style: none;
+    }
+    details > summary::-webkit-details-marker { display: none; }
+    details > summary::before { content: "▸ "; }
+    details[open] > summary::before { content: "▾ "; }
+
+    .empty { font-size: .82rem; color: var(--it-text-muted); padding: 10px 2px; }
+  </style>
+</head>
+<body>
+  <div id="root"><div class="empty">正在读取…</div></div>
+
+  <script type="module">
+    // 改完立刻生效，**不设保存按钮**。
+    //
+    // 为什么不设：Hana 自带那套表单是「改完点保存」，保存按钮固定画在左上角。
+    // 而这里每一项都是低风险的即时开关，为它们加一道「记得点保存」，
+    // 只会制造忘点的机会 —— 忘了的后果是「我明明改了，怎么没反应」。
+    // 代价是每改一下就存一次；配置不到 1KB、只有一个写入口，这点开销可以忽略。
+    //
+    // 这个页面不认识任何具体功能：只按后端发来的清单画卡片，
+    // 卡片里每一块由对应功能自己声明。加功能不用改这个文件。
+    import { hana } from "./assets/sdk.js";
+
+    const root = document.getElementById("root");
+    const KEY_CATALOG = "features";
+    const KEY_CONFIG = "config";
+
+    await hana.ready();
+
+    // 后端返回裸值，前端这里返回 {key, value}。两种都得认。
+    const readKey = async (k, fallback) => {
+      const env = await hana.storage.global.get(k);
+      const v = env && typeof env === "object" && "value" in env ? env.value : env;
+      return v ?? fallback;
+    };
+    const writeConfig = async (patch) => {
+      const cur = (await readKey(KEY_CONFIG, {})) || {};
+      await hana.storage.global.set(KEY_CONFIG, { ...cur, ...patch });
+    };
+
+    const catalog = await readKey(KEY_CATALOG, null);
+    const config = (await readKey(KEY_CONFIG, {})) || {};
+    const featuresOn = config.features && typeof config.features === "object" ? config.features : {};
+
+    if (!catalog || !Array.isArray(catalog.features) || !catalog.features.length) {
+      root.innerHTML = '<div class="empty">后端还没发布功能目录。重新加载一下 App 即可。</div>';
+    } else {
+      root.innerHTML = "";
+      const el = (tag, cls, text) => {
+        const n = document.createElement(tag);
+        if (cls) n.className = cls;
+        if (text !== undefined) n.textContent = text;
+        return n;
+      };
+      const errorSlot = () => el("div", "err");
+
+      /** 存一项。失败就把界面拨回去，并把原因留在 err 槽里，不自动消失。 */
+      const commit = async (key, value, err, undo) => {
+        const prev = config[key];
+        config[key] = value;
+        try {
+          await writeConfig({ [key]: value });
+          err.textContent = "";
+        } catch (e) {
+          config[key] = prev;
+          undo?.();
+          err.textContent = "保存失败：" + String(e?.message || e);
+        }
+      };
+
+      /** 滑块开关。改完立刻存，没有确认步骤。label 为空时只出开关本身。 */
+      const makeSwitch = (label, hint, initial, onChange) => {
+        const ctrl = el("div", "ctrl");
+        const btn = el("button", "sw");
+        btn.type = "button";
+        btn.setAttribute("role", "switch");
+        const name = label || "";
+        const err = errorSlot();
+        let on = initial;
+        const paint = () => {
+          btn.setAttribute("aria-checked", String(on));
+          btn.setAttribute("aria-label", name ? `${name}：${on ? "已开启" : "已关闭"}` : (on ? "已开启" : "已关闭"));
+        };
+        btn.addEventListener("click", async () => {
+          btn.disabled = true;
+          on = !on;
+          paint();                       // 先动，存不进去再弹回去
+          await onChange(on, err);
+          btn.disabled = false;
+        });
+        paint();
+        ctrl.appendChild(btn);
+        ctrl.appendChild(err);
+        return ctrl;
+      };
+
+      /** 一个输入项。数字/下拉改完即存，长文本离开输入框才存。 */
+      const makeField = (spec) => {
+        const long = spec.type === "string";
+        const row = el("div", long ? "row stack" : "row");
+        const lab = el("div", "label", spec.label || spec.key);
+        if (spec.hint) lab.appendChild(el("span", "hint", spec.hint));
+        const ctrl = el("div", "ctrl");
+        const err = errorSlot();
+
+        const input = spec.type === "enum" ? document.createElement("select") : document.createElement("input");
+        const current = config[spec.key];
+        // 设过值的以它为准；没设过就选中的那个（= fallback 那一档）。
+        // 关键是“下拉一打开就能看到当前是多少”，而不是显示空白再让人猜。
+        const shown = current ?? spec.fallback;
+        if (spec.type === "enum") {
+          // 数值型选项补上单位：光一个 “5” 看不出是什么的 5。
+          const unit = spec.unit || "";
+          if (unit) input.classList.add("unitized");
+          for (const v of spec.values || []) {
+            const o = document.createElement("option");
+            o.value = String(v);
+            o.textContent = unit ? `${v} ${unit}` : String(v);
+            if (String(v) === String(shown)) o.selected = true;
+            input.appendChild(o);
+          }
+          if (![...input.options].some((o) => o.selected)) {
+            // 存的值不在候选里（比如以前手填过 7）。别让它默默显示第一项 ——
+            // 看着像“已经是这个了”，而实际存的是别的。
+            const o = document.createElement("option");
+            o.value = String(shown);
+            o.textContent = `${shown} ${unit}（当前）`.trim();
+            o.selected = true;
+            input.appendChild(o);
+          }
+          input.addEventListener("change", () => {
+            const v = spec.numeric ? Number(input.value) : input.value;
+            commit(spec.key, v, err, () => { input.value = String(shown); });
+          });
+        } else {
+          input.type = spec.type === "number" ? "number" : "text";
+          if (spec.type === "number") input.step = "1";
+          // 没配过就留空。用默认值把那一大段优化指令填进表单，
+          // 用户分不清那是默认值还是他自己写的。
+          if (current !== undefined && current !== null) input.value = String(current);
+          else input.placeholder = "默认";
+          const apply = () => {
+            const raw = input.value.trim();
+            const n = Number(raw);
+            const value = spec.type === "number"
+              ? (raw !== "" && Number.isFinite(n) ? n : undefined)
+              : (raw || undefined);
+            commit(spec.key, value, err, () => { input.value = current ?? ""; });
+          };
+          if (long) input.addEventListener("blur", apply);
+          else input.addEventListener("change", apply);
+        }
+        if (long) input.rows = 4;
+
+        ctrl.appendChild(input);
+        row.append(lab, ctrl, err);
+        return row;
+      };
+
+      // ── 每个功能一张卡片 ──────────────────────────────
+      for (const f of catalog.features.slice().sort((a, b) => a.order - b.order)) {
+        const card = el("div", "card");
+
+        // 标题行：功能名 + 开关。两者合并成一排是因为它们本来就是一件事 ——
+        // “要不要它”问的就是“在不在输入栏显示”，拆成上下两行会让人多看一眼。
+        const head = el("div", "row head");
+        const titleBox = el("div", "label");
+        titleBox.appendChild(el("span", "t", f.title || f.id));
+        if (f.blurb) titleBox.appendChild(el("span", "hint", f.blurb));
+        head.appendChild(titleBox);
+
+        // 开关状态 = 用户配置，没配过才用后端声明的缺省策略。
+        // 不自己猜业务规则（每个功能的缺省可能不同），
+        // 也不读“算过一次的当前状态”（那个会停在打开设置页那一刻不变）。
+        const isOn = () => (featuresOn[f.id] ?? f.defaultEnabled) === true;
+        const headErr = errorSlot();
+        const sw = makeSwitch("", null, isOn(), async (on, err) => {
+          const prev = isOn();
+          featuresOn[f.id] = on;
+          await commit("features", { ...featuresOn }, err, () => { featuresOn[f.id] = prev; });
+        });
+        head.appendChild(sw);
+        head.appendChild(headErr);
+        card.appendChild(head);
+
+        for (const block of f.extra?.blocks || []) {
+          if (block.kind === "field") {
+            card.appendChild(makeField(block));
+            continue;
+          }
+          if (block.kind === "segments") {
+            card.appendChild(buildSegments(block));
+            continue;
+          }
+          // 认不出的区块类型要出声，不能悄悄跳过 ——
+          // “加了个功能但设置页没画出来”属于最难查的一类问题。
+          card.appendChild(el("div", "err", `未知的设置区块类型：${block.kind}（${f.title}）`));
+        }
+        root.appendChild(card);
+      }
+
+      /** 额度：勾哪几项 + 输入栏里会长什么样。不再顶一个「显示哪几项」标题 ——
+       *  它在标题行下面已经一目了然，多这一行只是把卡片撑高。 */
+      function buildSegments(block) {
+        const wrap = el("div");
+        const segs = Array.isArray(config[block.key]) ? config[block.key] : [];
+        const providers = block.providers || [];
+        const matched = providers.filter((p) => p.matchable && p.quotas?.length);
+        const unsupported = providers.filter((p) => !(p.matchable && p.quotas?.length));
+
+        /**
+         * 分组顺序 = 勾选顺序里首次出现的先后。
+         *
+         * 为什么不能直接用 matched 原来的顺序：那个顺序是“哪些供应商被配过凭证”，
+         * 跟输入栏的显示顺序无关。于是会出现“设置页里 DeepSeek 在上、输入栏里
+         * MiniMax 在前”这种对不上的情况——用户看到的和实际显示的是两回事。
+         *
+         * 跟勾选顺序对齐之后：上面是哪个，下面就是哪个，
+         * 而且取消勾选不会打乱其余分组的相对位置。
+         */
+        const orderOf = (list) => {
+          const rank = new Map();
+          for (const key of segs) {
+            for (const p of matched) {
+              if (p.quotas.some((q) => q.key === key) && !rank.has(p.id)) {
+                rank.set(p.id, rank.size);
+              }
+            }
+          }
+          // 一个都没勾的排在后面，但它们之间保持原有相对顺序。
+          const rest = new Map(matched.map((p, i) => [p.id, i]));
+          return [...list].sort((a, b) => {
+            const ra = rank.has(a.id) ? rank.get(a.id) : 1000 + rest.get(a.id);
+            const rb = rank.has(b.id) ? rank.get(b.id) : 1000 + rest.get(b.id);
+            return ra - rb;
+          });
+        };
+        const usable = orderOf(matched);
+        // 这里曾经有一行「输入栏里显示　5 小时窗 / 周窗 / 账户余额」的预览，
+        // 现在去掉了。理由：勾选项就在上面一行行摆着，选了什么、什么顺序，
+        // 扫一眼就有答案；那行是重复信息。而且它是整块里唯一用等宽字带底色的，
+        // 在一片正常字体中间格外扎眼。
+        //
+        // 顺序仍然可见：分组按勾选顺序排，勾选框的位置就反映了先后。
+
+        // 勾选变化后重排分组：取消掉 MiniMax，DeepSeek 应该顶上来。
+        // 放在 commit 之后：写失败了不能先把界面改了。
+        const resort = () => {
+          const reordered = orderOf(matched);
+          const box = el("div");
+          for (const p of reordered) box.appendChild(groupOf(p));
+          for (const old of [...wrap.querySelectorAll(".group")]) old.remove();
+          for (const node of [...box.children]) wrap.appendChild(node);
+        };
+
+        function groupOf(p) {
+          const g = el("div", "row stack group");
+          g.appendChild(el("div", "label", p.title));
+          const chips = el("div", "chips");
+          for (const q of p.quotas) {
+            const label = el("label", "chip");
+            const input = document.createElement("input");
+            input.type = "checkbox";
+            input.checked = segs.includes(q.key);
+            const span = document.createElement("span");
+            span.textContent = q.title;
+            label.append(input, span);
+            label.classList.toggle("on", input.checked);
+            input.addEventListener("change", async () => {
+              label.classList.toggle("on", input.checked);
+              const prev = segs.slice();
+              const next = input.checked ? [...prev, q.key] : prev.filter((k) => k !== q.key);
+              segs.length = 0; segs.push(...next);
+              await commit(block.key, next, errorSlot(), () => {
+                segs.length = 0; segs.push(...prev);
+                input.checked = prev.includes(q.key);
+                label.classList.toggle("on", input.checked);
+              });
+              // 写成功了才重排。写失败时界面保持在失败那一瞬的样子。
+              resort();
+            });
+            chips.appendChild(label);
+          }
+          g.appendChild(chips);
+          return g;
+        }
+
+        for (const p of usable) wrap.appendChild(groupOf(p));
+
+        if (unsupported.length) {
+          // 收起来，但不藏。标题上直接写数量：平时不占地方，
+          // 需要查的人一眼知道有几个、点一下就出来。
+          const det = document.createElement("details");
+          det.appendChild(el("summary", null, `读不到额度的供应商（${unsupported.length}）`));
+          for (const p of unsupported) {
+            const r = el("div", "row stack");
+            r.appendChild(el("div", "label", p.title));
+            r.appendChild(el("span", "hint", p.note || "该供应商没有公开的额度接口"));
+            det.appendChild(r);
+          }
+          wrap.appendChild(det);
+        }
+        return wrap;
+      }
+    }
+
+    // 后端可能在本次打开之后才发布目录（App 重载过）。目录变了就重画，
+    // 避免对着空列表发愣。配置变更不重画 —— 那正是本页自己刚写的，
+    // 重画会把用户正在拨的开关弹回去。
+    hana.storage.global.onChanged((keys) => {
+      const list = Array.isArray(keys) ? keys.map(String) : [];
+      if (list.some((k) => k.includes(KEY_CATALOG))) location.reload();
+    });
+  </script>
+</body>
+</html>

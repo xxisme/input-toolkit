@@ -1,0 +1,13 @@
+# 发布用的打包产物与临时文件，不要提交
+dist-extensions/
+*.tgz
+*.zip
+node_modules/
+.DS_Store
+Thumbs.db
+
+# 本地调试残留
+*.log
+*.bak
+*.orig
+*.rej
