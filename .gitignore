@@ -11,3 +11,5 @@ Thumbs.db
 *.bak
 *.orig
 *.rej
+# 内部提交方案，不对外
+SUBMISSION.md
