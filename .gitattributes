@@ -1,0 +1,14 @@
+# 统一换行符。
+#
+# 不写这条的话，Windows 上克隆会得到 CRLF，Linux/macOS 上得到 LF ——
+# 同一份源码在两个平台上逐字节比对会不一致，排查问题时很误导。
+# 这里强制：仓库内一律 LF，检出到 Windows 时由 core.autocrlf 处理。
+* text=auto eol=lf
+
+# 二进制，不做换行转换
+*.png binary
+*.jpg binary
+*.ico binary
+*.zip binary
+*.woff binary
+*.woff2 binary
